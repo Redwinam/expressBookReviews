@@ -13,8 +13,8 @@ public_users.post("/register", (req, res) => {
       return res.status(400).json({
         message: "Registration failed: Username and password are required",
         details: {
-          username: username ? "已提供" : "缺失",
-          password: password ? "已提供" : "缺失",
+          username: username ? "provided" : "missing",
+          password: password ? "provided" : "missing",
         },
       });
     }
@@ -48,70 +48,119 @@ public_users.post("/register", (req, res) => {
 
 // Get the book list available in the shop
 public_users.get("/", function (req, res) {
-  try {
-    const booksList = JSON.stringify(books, null, 2);
-    res.status(200).send(booksList);
-  } catch (error) {
-    res.status(500).json({ message: "Error occurred while getting books list" });
-  }
+  const getBooks = new Promise((resolve, reject) => {
+    try {
+      resolve(books);
+    } catch (error) {
+      reject(error);
+    }
+  });
+
+  getBooks
+    .then((books) => {
+      res.status(200).json(books);
+    })
+    .catch((error) => {
+      res.status(500).json({ message: "Error occurred while fetching books list" });
+    });
 });
 
 // Get book details based on ISBN
 public_users.get("/isbn/:isbn", function (req, res) {
-  try {
-    const isbn = req.params.isbn;
-
-    // 检查 ISBN 是否存在于书籍数据中
-    if (books[isbn]) {
-      return res.status(200).json(books[isbn]);
-    } else {
-      return res.status(404).json({ message: `找不到 ISBN ${isbn} 对应的书籍` });
+  const getBookByISBN = new Promise((resolve, reject) => {
+    try {
+      const isbn = req.params.isbn;
+      if (books[isbn]) {
+        resolve(books[isbn]);
+      } else {
+        reject(new Error("Book not found"));
+      }
+    } catch (error) {
+      reject(error);
     }
-  } catch (error) {
-    return res.status(500).json({ message: "获取书籍详情时发生错误" });
-  }
+  });
+
+  getBookByISBN
+    .then((book) => {
+      res.status(200).json(book);
+    })
+    .catch((error) => {
+      if (error.message === "Book not found") {
+        res.status(404).json({ message: "Book not found for the given ISBN" });
+      } else {
+        res.status(500).json({ message: "Error occurred while fetching book details" });
+      }
+    });
 });
 
 // Get book details based on author
 public_users.get("/author/:author", function (req, res) {
-  try {
-    const requestedAuthor = req.params.author;
-    const booksByAuthor = Object.keys(books)
-      .filter((isbn) => books[isbn].author.toLowerCase() === requestedAuthor.toLowerCase())
-      .reduce((result, isbn) => {
-        result[isbn] = books[isbn];
-        return result;
-      }, {});
+  const getBooksByAuthor = new Promise((resolve, reject) => {
+    try {
+      const requestedAuthor = req.params.author;
+      const booksByAuthor = Object.keys(books)
+        .filter((isbn) => books[isbn].author.toLowerCase() === requestedAuthor.toLowerCase())
+        .reduce((result, isbn) => {
+          result[isbn] = books[isbn];
+          return result;
+        }, {});
 
-    if (Object.keys(booksByAuthor).length > 0) {
-      return res.status(200).json(booksByAuthor);
-    } else {
-      return res.status(404).json({ message: `找不到作者 ${requestedAuthor} 的书籍` });
+      if (Object.keys(booksByAuthor).length > 0) {
+        resolve(booksByAuthor);
+      } else {
+        reject(new Error("No books found for this author"));
+      }
+    } catch (error) {
+      reject(error);
     }
-  } catch (error) {
-    return res.status(500).json({ message: "搜索作者书籍时发生错误" });
-  }
+  });
+
+  getBooksByAuthor
+    .then((books) => {
+      res.status(200).json(books);
+    })
+    .catch((error) => {
+      if (error.message === "No books found for this author") {
+        res.status(404).json({ message: "No books found for the given author" });
+      } else {
+        res.status(500).json({ message: "Error occurred while searching for books by author" });
+      }
+    });
 });
 
 // Get all books based on title
 public_users.get("/title/:title", function (req, res) {
-  try {
-    const requestedTitle = req.params.title;
-    const booksByTitle = Object.keys(books)
-      .filter((isbn) => books[isbn].title.toLowerCase().includes(requestedTitle.toLowerCase()))
-      .reduce((result, isbn) => {
-        result[isbn] = books[isbn];
-        return result;
-      }, {});
+  const getBooksByTitle = new Promise((resolve, reject) => {
+    try {
+      const requestedTitle = req.params.title;
+      const booksByTitle = Object.keys(books)
+        .filter((isbn) => books[isbn].title.toLowerCase().includes(requestedTitle.toLowerCase()))
+        .reduce((result, isbn) => {
+          result[isbn] = books[isbn];
+          return result;
+        }, {});
 
-    if (Object.keys(booksByTitle).length > 0) {
-      return res.status(200).json(booksByTitle);
-    } else {
-      return res.status(404).json({ message: `找不到标题包含 ${requestedTitle} 的书籍` });
+      if (Object.keys(booksByTitle).length > 0) {
+        resolve(booksByTitle);
+      } else {
+        reject(new Error("No books found with this title"));
+      }
+    } catch (error) {
+      reject(error);
     }
-  } catch (error) {
-    return res.status(500).json({ message: "搜索书籍标题时发生错误" });
-  }
+  });
+
+  getBooksByTitle
+    .then((books) => {
+      res.status(200).json(books);
+    })
+    .catch((error) => {
+      if (error.message === "No books found with this title") {
+        res.status(404).json({ message: "No books found for the given title" });
+      } else {
+        res.status(500).json({ message: "Error occurred while searching for books by title" });
+      }
+    });
 });
 
 //  Get book review
